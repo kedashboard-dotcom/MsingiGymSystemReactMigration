@@ -1,0 +1,158 @@
+import React, { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import * as yup from 'yup';
+import { yupResolver } from '@hookform/resolvers/yup';
+import { Search, CreditCard } from 'lucide-react';
+import { toast } from 'react-hot-toast';
+import { usePayment } from '../contexts/PaymentContext';
+import apiService from '../services/api';
+
+const schema = yup.object({
+  searchBy: yup.string().oneOf(['membershipId', 'phone']),
+  membershipId: yup.string().when('searchBy', {
+    is: 'membershipId',
+    then: (s) => s.required('Membership ID required')
+  }),
+  phone: yup.string().when('searchBy', {
+    is: 'phone',
+    then: (s) => s.required('Phone required')
+  })
+});
+
+const Renew: React.FC = () => {
+  const { initiatePayment, isProcessing } = usePayment();
+  const [member, setMember] = useState<any>(null);
+  const [searching, setSearching] = useState(false);
+
+  const { register, handleSubmit, watch, formState: { errors } } = useForm({
+    resolver: yupResolver(schema),
+    defaultValues: { searchBy: 'membershipId' }
+  });
+
+  const searchBy = watch('searchBy');
+
+  const handleSearch = async (data: any) => {
+    setSearching(true);
+    try {
+      const params = searchBy === 'membershipId' 
+        ? { membership_id: data.membershipId }
+        : { phone: data.phone };
+
+      const response = await apiService.checkStatus(params);
+      if (response.status === 'success') {
+        setMember(response.data.user);
+        toast.success('Member found!');
+      } else {
+        toast.error('Member not found');
+      }
+    } catch (error: any) {
+      toast.error(error.message);
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  const handleRenew = async () => {
+    if (!member) return;
+    
+    try {
+      const result = await initiatePayment({
+        membership_id: member.membership_id,
+        phone: member.phone,
+        amount: process.env.REACT_APP_STANDARD_PRICE || '2'
+      }, 'renewal');
+
+      if (result.success) {
+        toast.success('Renewal payment sent!');
+      }
+    } catch (error: any) {
+      toast.error(error.message);
+    }
+  };
+
+  return (
+    <div className="container mx-auto px-4 py-8 max-w-2xl">
+      <h1 className="text-3xl font-bold mb-6">Renew Membership</h1>
+
+      {!member ? (
+        <form onSubmit={handleSubmit(handleSearch)} className="space-y-6">
+          <div>
+            <label className="block mb-4">Search by:</label>
+            <div className="flex space-x-4 mb-6">
+              <label className="flex items-center">
+                <input type="radio" value="membershipId" {...register('searchBy')} className="mr-2" />
+                Membership ID
+              </label>
+              <label className="flex items-center">
+                <input type="radio" value="phone" {...register('searchBy')} className="mr-2" />
+                Phone Number
+              </label>
+            </div>
+
+            {searchBy === 'membershipId' && (
+              <div>
+                <input {...register('membershipId')} placeholder="Membership ID" className="input-field" />
+                {errors.membershipId && <p className="text-red-600">{errors.membershipId.message}</p>}
+              </div>
+            )}
+
+            {searchBy === 'phone' && (
+              <div>
+                <input {...register('phone')} placeholder="Phone Number" className="input-field" />
+                {errors.phone && <p className="text-red-600">{errors.phone.message}</p>}
+              </div>
+            )}
+          </div>
+
+          <button type="submit" disabled={searching} className="btn-primary w-full">
+            {searching ? 'Searching...' : <><Search className="inline mr-2" /> Search Member</>}
+          </button>
+        </form>
+      ) : (
+        <div className="space-y-6">
+          <div className="bg-white p-6 rounded-lg shadow">
+            <h3 className="text-xl font-bold mb-4">Member Details</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-gray-600">Name</label>
+                <p className="font-semibold">{member.name}</p>
+              </div>
+              <div>
+                <label className="text-gray-600">Membership ID</label>
+                <p className="font-semibold">{member.membership_id}</p>
+              </div>
+              <div>
+                <label className="text-gray-600">Expiry</label>
+                <p className="font-semibold">
+                  {new Date(member.membership_end).toLocaleDateString()}
+                </p>
+              </div>
+              <div>
+                <label className="text-gray-600">Days Remaining</label>
+                <p className="font-bold text-lg">{member.days_remaining}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-yellow-50 p-4 rounded">
+            <p className="text-yellow-800">
+              Renewal will extend membership from current expiry date.
+              Amount: KSh {process.env.REACT_APP_STANDARD_PRICE || '2'}
+            </p>
+          </div>
+
+          <div className="flex space-x-4">
+            <button onClick={() => setMember(null)} className="btn-primary flex-1 bg-gray-200 text-gray-800">
+              Back
+            </button>
+            <button onClick={handleRenew} disabled={isProcessing} className="btn-primary flex-1">
+              {isProcessing ? 'Processing...' : <><CreditCard className="inline mr-2" /> Renew Now</>}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default Renew;
