@@ -1,6 +1,5 @@
 <IfModule mod_rewrite.c>
   RewriteEngine On
-  RewriteBase /
   
   # Force HTTPS
   RewriteCond %{HTTPS} off
@@ -10,13 +9,17 @@
   RewriteCond %{HTTP_HOST} ^www\.(.*)$ [NC]
   RewriteRule ^(.*)$ https://%1/$1 [R=301,L]
   
-  # If the requested resource exists as a file or directory, serve it
+  # If request is for API, redirect to index.php
+  RewriteCond %{REQUEST_URI} ^/api/ [NC]
+  RewriteRule ^ index.php [L,QSA]
+  
+  # If requested resource exists as file or directory, serve it
   RewriteCond %{REQUEST_FILENAME} -f [OR]
   RewriteCond %{REQUEST_FILENAME} -d
   RewriteRule ^ - [L]
   
-  # Otherwise, serve index.html (React SPA)
-  RewriteRule ^ index.html [L]
+  # Otherwise, serve index.php for React SPA
+  RewriteRule ^ index.php [L]
 </IfModule>
 
 # Security headers
@@ -25,17 +28,11 @@
   Header set X-Frame-Options "SAMEORIGIN"
   Header set X-XSS-Protection "1; mode=block"
   Header set Referrer-Policy "strict-origin-when-cross-origin"
-  Header set Permissions-Policy "camera=(), microphone=(), geolocation=()"
 </IfModule>
 
 # Cache static assets
 <FilesMatch "\.(css|js|jpg|jpeg|png|gif|ico|svg|woff|woff2|ttf|eot)$">
   Header set Cache-Control "max-age=31536000, public"
-</FilesMatch>
-
-# Cache HTML for 1 hour
-<FilesMatch "\.(html)$">
-  Header set Cache-Control "max-age=3600, public"
 </FilesMatch>
 
 # Prevent directory listing
@@ -48,6 +45,12 @@ Options -Indexes
 </FilesMatch>
 
 # Error documents
-ErrorDocument 404 /index.html
-ErrorDocument 403 /index.html
-ErrorDocument 500 /index.html
+ErrorDocument 404 /index.php
+ErrorDocument 403 /index.php
+ErrorDocument 500 /index.php
+
+# Increase PHP limits for API
+php_value upload_max_filesize 10M
+php_value post_max_size 10M
+php_value max_execution_time 300
+php_value max_input_time 300

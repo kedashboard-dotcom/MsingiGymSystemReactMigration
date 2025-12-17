@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Msingi Gym API Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .card { border: 1px solid #ddd; padding: 20px; margin: 10px 0; border-radius: 5px; }
+        .success { color: green; font-weight: bold; }
+        .error { color: red; font-weight: bold; }
+        .warning { color: orange; }
+        button { padding: 10px 20px; margin: 5px; background: #007bff; color: white; border: none; cursor: pointer; }
+        pre { background: #f5f5f5; padding: 10px; overflow: auto; border: 1px solid #ddd; }
+    </style>
+</head>
+<body>
+    <h1>Msingi Gym System - API Test</h1>
+    
+    <div class="card">
+        <h3>Quick Test</h3>
+        <button onclick="testHealth()">Test /api/health</button>
+        <button onclick="testRegister()">Test Registration</button>
+        <button onclick="testStatus()">Test Status Check</button>
+        <button onclick="window.location.href='/'">Go to Main Site</button>
+    </div>
+    
+    <div class="card">
+        <h3>Test Results</h3>
+        <div id="result"></div>
+        <pre id="data" style="display:none;"></pre>
+    </div>
+    
+    <div class="card">
+        <h3>All API Endpoints</h3>
+        <ul>
+            <li><a href="/api/health" target="_blank">GET /api/health</a></li>
+            <li><a href="/api/members/status?membership_id=GYM001" target="_blank">GET /api/members/status</a></li>
+            <li><a href="/api/test-axtrax" target="_blank">GET /api/test-axtrax</a></li>
+            <li><a href="/api/payments/mpesa-callback" target="_blank">GET /api/payments/mpesa-callback</a></li>
+        </ul>
+    </div>
+
+    <script>
+        async function testHealth() {
+            showLoading('Testing /api/health...');
+            try {
+                const response = await fetch('/api/health');
+                const data = await response.json();
+                showResult('✅ /api/health working', data);
+            } catch (error) {
+                showResult('❌ /api/health failed: ' + error.message);
+            }
+        }
+        
+        async function testRegister() {
+            showLoading('Testing registration...');
+            try {
+                const response = await fetch('/api/members/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name: 'Test User',
+                        phone: '254712345678',
+                        amount: 2,
+                        membership_type: 'standard'
+                    })
+                });
+                const data = await response.json();
+                showResult('✅ Registration test successful', data);
+            } catch (error) {
+                showResult('❌ Registration failed: ' + error.message);
+            }
+        }
+        
+        async function testStatus() {
+            showLoading('Testing status check...');
+            try {
+                const response = await fetch('/api/members/status?membership_id=GYM001');
+                const data = await response.json();
+                showResult('✅ Status check working', data);
+            } catch (error) {
+                showResult('❌ Status check failed: ' + error.message);
+            }
+        }
+        
+        function showLoading(message) {
+            document.getElementById('result').innerHTML = `<span class="warning">${message}</span>`;
+            document.getElementById('data').style.display = 'none';
+        }
+        
+        function showResult(message, data = null) {
+            const resultDiv = document.getElementById('result');
+            const dataDiv = document.getElementById('data');
+            
+            if (message.includes('✅')) {
+                resultDiv.innerHTML = `<span class="success">${message}</span>`;
+            } else {
+                resultDiv.innerHTML = `<span class="error">${message}</span>`;
+            }
+            
+            if (data) {
+                dataDiv.textContent = JSON.stringify(data, null, 2);
+                dataDiv.style.display = 'block';
+            }
+        }
+        
+        // Test on load
+        window.onload = testHealth;
+    </script>
+</body>
+</html>
