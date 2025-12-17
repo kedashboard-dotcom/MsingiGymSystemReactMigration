@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Deploy Msingi Gym</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; }
+        .card { border: 1px solid #ddd; padding: 30px; border-radius: 10px; }
+        button { background: #3b82f6; color: white; border: none; padding: 15px 30px; border-radius: 6px; cursor: pointer; font-size: 16px; }
+        .loading { display: none; color: #f59e0b; }
+        .result { margin-top: 20px; padding: 15px; background: #f0f9ff; border-radius: 6px; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>Deploy Msingi Gym System</h1>
+        <p>This will build and deploy the React frontend.</p>
+        
+        <div style="margin: 20px 0;">
+            <label>Password: </label>
+            <input type="password" id="password" value="build123">
+        </div>
+        
+        <button onclick="deploy()">🚀 Deploy Now</button>
+        
+        <div id="loading" class="loading">Deploying... Please wait.</div>
+        
+        <div id="result" class="result"></div>
+        
+        <div style="margin-top: 30px; font-size: 14px; color: #666;">
+            <p><strong>After deployment:</strong></p>
+            <ul>
+                <li><a href="/" target="_blank">Visit Main Site</a></li>
+                <li><a href="/api/health" target="_blank">Test API</a></li>
+                <li><a href="/api-test.html" target="_blank">API Test Page</a></li>
+            </ul>
+        </div>
+    </div>
+    
+    <script>
+        async function deploy() {
+            const password = document.getElementById('password').value;
+            const loading = document.getElementById('loading');
+            const result = document.getElementById('result');
+            
+            loading.style.display = 'block';
+            result.innerHTML = '';
+            
+            try {
+                const response = await fetch('/build-react.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: 'password=' + encodeURIComponent(password)
+                });
+                
+                const text = await response.text();
+                result.innerHTML = text;
+            } catch (error) {
+                result.innerHTML = '❌ Error: ' + error.message;
+            } finally {
+                loading.style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html>
