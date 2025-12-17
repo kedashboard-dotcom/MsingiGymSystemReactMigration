@@ -1,60 +1,81 @@
 <IfModule mod_rewrite.c>
-  RewriteEngine On
-  
-  # Force HTTPS
-  RewriteCond %{HTTPS} off
-  RewriteRule ^(.*)$ https://%{HTTP_HOST}/$1 [R=301,L]
-  
-  # Remove www
-  RewriteCond %{HTTP_HOST} ^www\.(.*)$ [NC]
-  RewriteRule ^(.*)$ https://%1/$1 [R=301,L]
-  
-  # =====================
-  # API ROUTES
-  # =====================
-  RewriteRule ^api/(.*)$ index.php [L,QSA]
-  
-  # =====================
-  # STATIC FILES
-  # =====================
-  # If file exists with .html, .css, .js, .jpg, etc extensions, serve it
-  RewriteCond %{REQUEST_FILENAME} -f
-  RewriteCond %{REQUEST_FILENAME} \.(html|css|js|jpg|jpeg|png|gif|ico|svg|woff|woff2|ttf|eot|json)$
-  RewriteRule ^ - [L]
-  
-  # =====================
-  # REACT SPA FALLBACK
-  # =====================
-  # For all other requests, serve index.html
-  RewriteRule ^ index.html [L]
+    RewriteEngine On
+    RewriteBase /
+    
+    # Force HTTPS and remove www
+    RewriteCond %{HTTPS} off [OR]
+    RewriteCond %{HTTP_HOST} ^www\. [NC]
+    RewriteCond %{HTTP_HOST} ^(?:www\.)?(.+)$ [NC]
+    RewriteRule ^ https://%1%{REQUEST_URI} [R=301,L,NE]
+    
+    # =====================
+    # 1. API ROUTES - Route to PHP backend
+    # =====================
+    # Send all /api/* requests to index.php (your PHP API)
+    RewriteRule ^api/(.*)$ index.php [L,QSA]
+    
+    # =====================
+    # 2. EXISTING FILES - Serve static assets directly
+    # =====================
+    # If the requested file exists (with common web extensions), serve it
+    RewriteCond %{REQUEST_FILENAME} -f
+    RewriteCond %{REQUEST_URI} \.(html?|css|js|jpe?g|png|gif|ico|svg|woff2?|ttf|eot|json|txt)$ [NC]
+    RewriteRule ^ - [L]
+    
+    # =====================
+    # 3. REACT SPA FALLBACK - All other routes to React
+    # =====================
+    # For all non-API requests that don't match existing files, serve React's index.html
+    RewriteRule ^ index.html [L]
 </IfModule>
 
-# Security headers
+# =====================
+# SECURITY HEADERS
+# =====================
 <IfModule mod_headers.c>
-  Header set X-Content-Type-Options "nosniff"
-  Header set X-Frame-Options "SAMEORIGIN"
-  Header set X-XSS-Protection "1; mode=block"
-  Header set Referrer-Policy "strict-origin-when-cross-origin"
+    # Security headers
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-Frame-Options "SAMEORIGIN"
+    Header set X-XSS-Protection "1; mode=block"
+    Header set Referrer-Policy "strict-origin-when-cross-origin"
+    
+    # Cache static assets for 1 year
+    <FilesMatch "\.(css|js|jpg|jpeg|png|gif|ico|svg|woff|woff2|ttf|eot|json)$">
+        Header set Cache-Control "max-age=31536000, public, immutable"
+    </FilesMatch>
+    
+    # Don't cache HTML files (for SPA updates)
+    <FilesMatch "\.(html|php)$">
+        Header set Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
+    </FilesMatch>
 </IfModule>
 
-# Cache static assets
-<FilesMatch "\.(css|js|jpg|jpeg|png|gif|ico|svg|woff|woff2|ttf|eot)$">
-  Header set Cache-Control "max-age=31536000, public"
-</FilesMatch>
-
-# Cache HTML for 1 hour
-<FilesMatch "\.(html)$">
-  Header set Cache-Control "max-age=3600, public"
-</FilesMatch>
-
+# =====================
+# SERVER CONFIGURATION
+# =====================
 # Prevent directory listing
 Options -Indexes
 
-# Error documents - Point to index.html for SPA
+# Protect sensitive files
+<FilesMatch "^(\.env|\.htaccess|\.git|composer\.(json|lock)|package(-lock)?\.json|server\.js)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Error documents - use React's index.html for SPA routing
 ErrorDocument 404 /index.html
 ErrorDocument 403 /index.html
 ErrorDocument 500 /index.html
 
-# Increase PHP limits
-php_value upload_max_filesize 10M
-php_value post_max_size 10M
+# Increase PHP limits for API processing
+<IfModule mod_php.c>
+    php_value upload_max_filesize 10M
+    php_value post_max_size 10M
+    php_value max_execution_time 300
+    php_value max_input_time 300
+</IfModule>
+
+# Enable compression for faster loading
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css text/javascript application/javascript application/json application/xml+rss
+</IfModule>
