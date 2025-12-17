@@ -1,5 +1,6 @@
 <IfModule mod_rewrite.c>
   RewriteEngine On
+  RewriteBase /
   
   # Force HTTPS
   RewriteCond %{HTTPS} off
@@ -9,19 +10,13 @@
   RewriteCond %{HTTP_HOST} ^www\.(.*)$ [NC]
   RewriteRule ^(.*)$ https://%1/$1 [R=301,L]
   
-  # Serve React build for all non-API/non-backend routes
-  RewriteCond %{REQUEST_FILENAME} !-f
-  RewriteCond %{REQUEST_FILENAME} !-d
-  RewriteCond %{REQUEST_URI} !^/backend
-  RewriteCond %{REQUEST_URI} !^/api
-  RewriteCond %{REQUEST_URI} !^/node_modules
-  RewriteRule ^ index.html [QSA,L]
+  # If the requested resource exists as a file or directory, serve it
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
   
-  # Redirect /backend to Node.js backend
-  RewriteRule ^backend/(.*)$ http://localhost:3000/$1 [P,L]
-  
-  # Proxy API requests to backend
-  RewriteRule ^api/(.*)$ http://localhost:3000/api/$1 [P,L]
+  # Otherwise, serve index.html (React SPA)
+  RewriteRule ^ index.html [L]
 </IfModule>
 
 # Security headers
@@ -31,13 +26,6 @@
   Header set X-XSS-Protection "1; mode=block"
   Header set Referrer-Policy "strict-origin-when-cross-origin"
   Header set Permissions-Policy "camera=(), microphone=(), geolocation=()"
-</IfModule>
-
-# CORS for API
-<IfModule mod_headers.c>
-  Header set Access-Control-Allow-Origin "*"
-  Header set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
-  Header set Access-Control-Allow-Headers "Content-Type, Authorization"
 </IfModule>
 
 # Cache static assets
@@ -54,15 +42,10 @@
 Options -Indexes
 
 # Protect sensitive files
-<FilesMatch "^(\.env|\.htaccess|\.git|package\.json|package-lock\.json|server\.js)$">
+<FilesMatch "^(\.env|\.htaccess|\.git|package\.json|package-lock\.json)$">
   Order allow,deny
   Deny from all
 </FilesMatch>
-
-# Compress files
-<IfModule mod_deflate.c>
-  AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css text/javascript application/javascript application/json
-</IfModule>
 
 # Error documents
 ErrorDocument 404 /index.html
